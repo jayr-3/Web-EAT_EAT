@@ -99,7 +99,7 @@ function renderAppShell({ activePage, user, profile }) {
       <div class="sidebar-divider"></div>
       <a href="admin.html" class="sidebar-link is-admin-link ${activePage === "admin" ? "is-active" : ""}">
         <span class="sidebar-link-icon">🛠️</span>
-        <span>แผงควบคุมแอดมิน</span>
+        <span>จัดการข้อมูล</span>
       </a>`
       : "";
 
