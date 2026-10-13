@@ -82,6 +82,31 @@ const DataStore = (() => {
     });
   }
 
+  /**
+   * รีเฟรชเฉพาะคะแนนเฉลี่ย/จำนวนคนให้คะแนนของทุกเมนู (menu_rating_stats)
+   * โดยไม่โหลดเมนู/วัตถุดิบ/อาการแพ้ใหม่ทั้งหมด — เรียกหลังผู้ใช้เพิ่งให้คะแนน
+   * เมนูไปหมาด ๆ เพื่อให้ผลการแนะนำครั้งถัดไป (เช่นหลังกด "ล้างตัวกรอง" แล้ว
+   * ค้นหาใหม่) ใช้ตัวเลขล่าสุด ไม่ค้างค่าที่โหลดไว้ตอนเปิดหน้าครั้งแรก
+   */
+  async function refreshRatingStats() {
+    if (!menus) return;
+    ensureSupabase();
+    const { data, error } = await supa.from("menu_rating_stats").select("menu_id, avg_rating, rating_count");
+    if (error) {
+      console.warn("[data.js] รีเฟรชคะแนนเฉลี่ยเมนูไม่สำเร็จ:", error.message);
+      return;
+    }
+    const ratingByMenuId = {};
+    (data || []).forEach((r) => {
+      ratingByMenuId[r.menu_id] = { avgRating: Number(r.avg_rating) || 0, ratingCount: Number(r.rating_count) || 0 };
+    });
+    menus.forEach((m) => {
+      const stats = ratingByMenuId[m.id] || { avgRating: 0, ratingCount: 0 };
+      m.avgRating = stats.avgRating;
+      m.ratingCount = stats.ratingCount;
+    });
+  }
+
   function getMenus() {
     return menus || [];
   }
@@ -107,5 +132,5 @@ const DataStore = (() => {
       .slice(0, limit);
   }
 
-  return { init, getMenus, getMenuById, getIngredients, getAllergens, searchIngredients };
+  return { init, refreshRatingStats, getMenus, getMenuById, getIngredients, getAllergens, searchIngredients };
 })();
