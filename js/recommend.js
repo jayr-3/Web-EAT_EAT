@@ -46,11 +46,19 @@
     if (isFav) favoriteMenuIds.add(menuId);
     else favoriteMenuIds.delete(menuId);
     Toast.show(isFav ? "บันทึกเป็นเมนูโปรดแล้ว" : "นำออกจากเมนูโปรดแล้ว", "success");
+    // อัปเดตรายการที่กำลังแสดงอยู่ทันที ไม่ต้องรอให้กด "ล้างตัวกรอง" แล้วค้นหาใหม่
+    // ถึงจะเห็นป้าย ♥ เมนูโปรดที่เพิ่งเปลี่ยน
+    if (hasSearched) runRecommendation();
   }
 
   async function rateMenuHandler(menuId, rating) {
     await DB.rateMenu(user.id, menuId, rating);
+    // คะแนนเฉลี่ยที่แคชไว้ใน DataStore ตอนโหลดหน้าครั้งแรกจะไม่อัปเดตเองอีก
+    // ต้องรีเฟรชตรงนี้ ไม่งั้นผลการแนะนำครั้งถัดไป (เช่นกด "ล้างตัวกรอง" แล้ว
+    // ค้นหาใหม่) จะยังโชว์คะแนน/จำนวนรีวิวเก่าค้างอยู่
+    await DataStore.refreshRatingStats();
     Toast.show(`ให้คะแนน ${rating} ดาวแล้ว ระบบจะใช้ปรับคำแนะนำครั้งถัดไป`, "success");
+    if (hasSearched) runRecommendation();
   }
 
   function renderResults({ results, excludedCount }) {
@@ -102,6 +110,10 @@
     });
   }
 
+  // ไว้เช็คว่าตอนนี้มีผลการค้นหาแสดงอยู่ไหม (ให้สั่งค้นหาซ้ำอัตโนมัติได้ตอน
+  // บันทึกเมนูโปรด/ให้คะแนนจากในรายการ โดยไม่ไปรบกวนตอนที่ยังไม่เคยค้นหาเลย)
+  let hasSearched = false;
+
   function runRecommendation() {
     const available = ingredientPicker.getSelected();
     const allergenIds = conditionPicker.getSelected();
@@ -110,6 +122,7 @@
       allergenIds,
       favoriteMenuIds,
     });
+    hasSearched = true;
     renderResults(result);
   }
 
@@ -120,6 +133,7 @@
     ingredientPicker.setSelected([]);
     conditionPicker.setSelected([]);
     summaryEl.textContent = "";
+    hasSearched = false;
     renderEmpty("เลือกวัตถุดิบที่มี แล้วกด “แนะนำเมนูให้หน่อย” เพื่อเริ่มค้นหา", "🧑‍🍳");
     Toast.show("ล้างตัวกรองแล้ว", "default");
   });
