@@ -371,6 +371,43 @@ const DB = (() => {
       const { error } = await supa.from("profiles").update({ role }).eq("id", userId);
       if (error) throw error;
     },
+
+    /** ดูข้อมูลผู้ใช้งานรายคนแบบละเอียด (รวมเมนูโปรด/รีวิวของคนนั้นด้วย) */
+    async getUserDetail(userId) {
+      ensureSupabase();
+      const [{ data: profile, error: profileError }, { data: favorites, error: favError }] = await Promise.all([
+        supa.from("profiles").select("*").eq("id", userId).single(),
+        supa
+          .from("favorites")
+          .select("menu_id, rating, created_at")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false }),
+      ]);
+      if (profileError) throw profileError;
+      if (favError) throw favError;
+      return { profile, favorites: favorites || [] };
+    },
+
+    /**
+     * ลบบัญชีผู้ใช้แบบสมบูรณ์ (ทั้งบัญชี Auth และข้อมูลที่ผูกอยู่ทั้งหมด)
+     * ฝั่งเว็บลบบัญชี Auth ของคนอื่นตรง ๆ ด้วย anon key ไม่ได้ (ต้องใช้ Service
+     * Role Key ซึ่งห้ามฝังในโค้ดฝั่งเว็บ) จึงเรียกผ่าน Edge Function
+     * "admin-delete-user" ที่รันบนฝั่งเซิร์ฟเวอร์แทน — ดูรายละเอียดการ deploy
+     * ที่ supabase/functions/admin-delete-user/index.ts
+     */
+    async deleteUser(userId) {
+      ensureSupabase();
+      const { data, error } = await supa.functions.invoke("admin-delete-user", {
+        body: { userId },
+      });
+      if (error) {
+        // supabase-js ห่อ error ตอบกลับจากฟังก์ชัน (เช่นข้อความภาษาไทยที่เราส่งมา)
+        // ไว้ใน error.context แทนที่จะโยน error.message ตรง ๆ — ดึงออกมาถ้ามี
+        const detail = await error.context?.json?.().catch(() => null);
+        throw new Error(detail?.error || error.message || "ลบผู้ใช้งานไม่สำเร็จ");
+      }
+      if (data?.error) throw new Error(data.error);
+    },
   };
 
   return {
