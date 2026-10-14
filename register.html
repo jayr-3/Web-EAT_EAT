@@ -118,7 +118,10 @@
       const passwordInput = document.getElementById("password");
       restrictToAscii(emailInput);
       restrictToAscii(passwordInput);
-      bindEmailValidation(emailInput);
+      // bindEmailValidation คืนฟังก์ชันไว้เรียกตอน submit เพื่อรอผลเช็ค MX
+      // record ให้เสร็จก่อน (ไม่ใช่แค่เช็ครูปแบบ) กันเคสอีเมลโดเมนแปลก ๆ ที่ไม่
+      // มีจริง (เช่น พิมพ์สะกดผิด หรือโดเมนไม่รับอีเมล) หลุดเข้ามาสมัครได้
+      const verifyEmailBeforeSubmit = bindEmailValidation(emailInput);
 
       const form = document.getElementById("register-form");
       const errorEl = document.getElementById("form-error");
@@ -131,6 +134,10 @@
         submittingText: "กำลังสร้างบัญชี...",
         onSubmit: async () => {
           if (!isValidEmail(emailInput.value)) throw new Error("กรุณากรอกอีเมลให้ถูกต้อง เช่น name@example.com");
+          // เช็คซ้ำว่าโดเมนอีเมลมีอยู่จริงไหม (รอผลให้เสร็จ กันเคส blur ไม่ทัน
+          // เช่น autofill แล้วกด submit เร็ว ๆ) ถ้าโดเมนไม่รับอีเมลจริง ไม่ให้สมัคร
+          const domainOk = await verifyEmailBeforeSubmit();
+          if (!domainOk) throw new Error("ไม่พบโดเมนอีเมลนี้จริง กรุณาตรวจสอบการสะกดอีกครั้ง");
           // อาการแพ้/โรคประจำตัวเป็นข้อมูลไม่บังคับ ไม่เลือกเลยก็สมัครได้ตามปกติ
           await DB.signUp({
             name: document.getElementById("name").value.trim(),
