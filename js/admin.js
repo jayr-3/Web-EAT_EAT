@@ -10,6 +10,13 @@
 
   renderAppShell({ activePage: "admin", user, profile });
 
+  // ใช้ชื่อ/ไอคอนอาการแพ้ ตอนแสดงรายละเอียดผู้ใช้งาน (ข้อ "เรียกดูข้อมูล")
+  try {
+    await DataStore.init();
+  } catch (err) {
+    console.warn("[admin] โหลดรายการอาการแพ้ไม่สำเร็จ (จะแสดงเป็นรหัสดิบแทน):", err.message);
+  }
+
   // ---------- Tab switching ----------
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -444,13 +451,17 @@
           <div class="title">${u.name || "(ไม่ระบุชื่อ)"} ${isMe ? '<span class="meta">(คุณ)</span>' : ""}</div>
           <div class="meta">${u.email || "-"}</div>
         </div>
-        <div class="actions">
+        <div class="actions" style="flex-wrap:wrap; justify-content:flex-end">
           <span class="admin-badge ${u.role === "admin" ? "is-admin" : ""}">${u.role === "admin" ? "แอดมิน" : "สมาชิก"}</span>
+          <button class="btn btn-outline btn-sm" data-action="view">เรียกดูข้อมูล</button>
           <button class="btn btn-outline btn-sm" data-action="toggle">
             ${u.role === "admin" ? "ถอดสิทธิ์แอดมิน" : "ตั้งเป็นแอดมิน"}
           </button>
+          <button class="btn btn-danger-outline btn-sm" data-action="delete" ${isMe ? "disabled" : ""}>ลบ</button>
         </div>`;
+      row.querySelector('[data-action="view"]').addEventListener("click", () => viewUser(u));
       row.querySelector('[data-action="toggle"]').addEventListener("click", () => toggleRole(u));
+      if (!isMe) row.querySelector('[data-action="delete"]').addEventListener("click", () => deleteUser(u));
       userListEl.appendChild(row);
     });
   }
@@ -469,6 +480,104 @@
       await loadUsers();
     } catch (err) {
       Toast.show(err.message || "อัปเดตไม่สำเร็จ", "danger");
+    }
+  }
+
+  async function deleteUser(u) {
+    if (
+      !confirm(
+        `ลบบัญชี "${u.name || u.email}" อย่างถาวรใช่หรือไม่?\n\nการลบนี้ย้อนกลับไม่ได้ ข้อมูลบัญชี เมนูโปรด และรีวิวทั้งหมดของผู้ใช้นี้จะถูกลบไปด้วย`
+      )
+    )
+      return;
+    try {
+      await DB.admin.deleteUser(u.id);
+      Toast.show("ลบบัญชีผู้ใช้แล้ว", "success");
+      await loadUsers();
+    } catch (err) {
+      Toast.show(err.message || "ลบไม่สำเร็จ", "danger", 6000);
+    }
+  }
+
+  // ---------- Drawer "เรียกดูข้อมูล" ผู้ใช้งาน ----------
+  let userDrawerOverlay, userDrawerBody;
+  function ensureUserDrawer() {
+    if (userDrawerOverlay) return;
+    userDrawerOverlay = document.createElement("div");
+    userDrawerOverlay.className = "overlay";
+    userDrawerOverlay.innerHTML = `
+      <div class="drawer" role="dialog" aria-modal="true">
+        <div class="drawer-head">
+          <h3 class="drawer-title" style="margin:0">ข้อมูลผู้ใช้งาน</h3>
+          <button type="button" class="drawer-close" aria-label="ปิด">✕</button>
+        </div>
+        <div class="drawer-body"></div>
+      </div>`;
+    document.body.appendChild(userDrawerOverlay);
+    userDrawerBody = userDrawerOverlay.querySelector(".drawer-body");
+    userDrawerOverlay.querySelector(".drawer-close").addEventListener("click", () => {
+      userDrawerOverlay.classList.remove("is-open");
+    });
+    userDrawerOverlay.addEventListener("click", (e) => {
+      if (e.target === userDrawerOverlay) userDrawerOverlay.classList.remove("is-open");
+    });
+  }
+
+  async function viewUser(u) {
+    ensureUserDrawer();
+    userDrawerBody.innerHTML = `<p class="mb-0">กำลังโหลดข้อมูล...</p>`;
+    userDrawerOverlay.classList.add("is-open");
+    try {
+      const { profile: p, favorites } = await DB.getUserDetail(u.id);
+      const allergens = DataStore.getAllergens();
+      const conditionLabels = (p.health_conditions || [])
+        .map((id) => {
+          const a = allergens.find((x) => x.id === id);
+          return a ? `${a.icon} ${a.label}` : id;
+        });
+      const createdAt = p.created_at
+        ? new Date(p.created_at).toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })
+        : "-";
+      const avatarHtml = p.avatar_url
+        ? `<img src="${p.avatar_url}" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover" />`
+        : `<div class="avatar" style="width:64px;height:64px;font-size:1.4rem">${(p.name || p.email || "?").trim().charAt(0).toUpperCase()}</div>`;
+
+      userDrawerBody.innerHTML = `
+        <div class="row" style="margin-bottom:20px; gap:16px;">
+          ${avatarHtml}
+          <div>
+            <div style="font-weight:700; font-size:1.1rem">${p.name || "(ไม่ระบุชื่อ)"}</div>
+            <span class="admin-badge ${p.role === "admin" ? "is-admin" : ""}">${p.role === "admin" ? "แอดมิน" : "สมาชิก"}</span>
+          </div>
+        </div>
+        <div class="stack" style="gap:10px; margin-bottom:22px">
+          <div class="ingredient-line"><span>อีเมล</span><span>${p.email || "-"}</span></div>
+          <div class="ingredient-line"><span>อายุ</span><span>${p.age ?? "-"}</span></div>
+          <div class="ingredient-line"><span>น้ำหนัก</span><span>${p.weight_kg ? p.weight_kg + " กก." : "-"}</span></div>
+          <div class="ingredient-line"><span>ส่วนสูง</span><span>${p.height_cm ? p.height_cm + " ซม." : "-"}</span></div>
+          <div class="ingredient-line"><span>สมัครเมื่อ</span><span>${createdAt}</span></div>
+        </div>
+        <h4>อาการแพ้ / โรคประจำตัว</h4>
+        <div class="row-wrap" style="margin-bottom:22px">
+          ${conditionLabels.length ? conditionLabels.map((c) => `<span class="tag">${c}</span>`).join("") : '<span class="tag">ไม่ระบุ</span>'}
+        </div>
+        <h4>เมนูโปรด / รีวิว (${favorites.length})</h4>
+        <div class="stack" style="gap:8px">
+          ${
+            favorites.length
+              ? favorites
+                  .map((f) => {
+                    const menu = DataStore.getMenuById(f.menu_id);
+                    const stars = f.rating ? `${"★".repeat(f.rating)}${"☆".repeat(5 - f.rating)}` : "ยังไม่ให้คะแนน";
+                    return `<div class="ingredient-line"><span>${menu ? menu.name : `เมนู #${f.menu_id}`}</span><span>${stars}</span></div>`;
+                  })
+                  .join("")
+              : '<p class="form-note" style="margin:0">ยังไม่มีเมนูโปรด</p>'
+          }
+        </div>
+      `;
+    } catch (err) {
+      userDrawerBody.innerHTML = `<div class="empty-state"><div class="glyph">⚠️</div><p class="mb-0">${err.message || "โหลดข้อมูลไม่สำเร็จ"}</p></div>`;
     }
   }
 
