@@ -12,7 +12,7 @@
   })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>จัดการข้อมูล — Eat Eat</title>
+<title>จัดการข้อมูล — กินอะไรดี</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css" />
@@ -25,7 +25,7 @@
 
     <div class="mobile-topbar">
       <button class="mobile-topbar-toggle" aria-label="เปิดเมนู">☰</button>
-      <a href="home.html" class="brand"><span class="brand-mark">🍲</span> Eat Eat</a>
+      <a href="home.html" class="brand"><span class="brand-mark">🍲</span> กินอะไรดี</a>
     </div>
 
     <main class="app-main">
@@ -77,7 +77,18 @@
                 <label for="menu-steps">วิธีทำ (1 บรรทัดต่อ 1 ขั้นตอน)</label>
                 <textarea id="menu-steps" class="input" rows="6" required placeholder="สับกระเทียมให้ละเอียด&#10;ผัดกระเทียมกับหมูสับจนสุก"></textarea>
               </div>
-              <div class="row-wrap">
+              <div class="field-row two">
+                <div class="field">
+                  <label for="menu-sodium">โซเดียมต่อจาน (มก.)</label>
+                  <input type="number" id="menu-sodium" class="input" min="0" step="1" placeholder="เช่น 450" />
+                </div>
+                <div class="field">
+                  <label for="menu-sugar">น้ำตาลต่อจาน (ก.)</label>
+                  <input type="number" id="menu-sugar" class="input" min="0" step="0.1" placeholder="เช่น 8" />
+                </div>
+              </div>
+              <small class="form-note">ใช้กรองเมนูสำหรับผู้ป่วยโรคไต/เบาหวาน/ความดัน — เว้นว่างได้ถ้ายังไม่ทราบค่าจริง (ระบบจะไม่ตัดเมนูนี้ออกจากกลุ่มโรคจนกว่าจะกรอกข้อมูล)</small>
+              <div class="row-wrap" style="margin-top:14px">
                 <button type="submit" class="btn btn-primary">บันทึกเมนู</button>
                 <button type="button" id="menu-form-cancel" class="btn btn-ghost hidden">ยกเลิกแก้ไข</button>
               </div>

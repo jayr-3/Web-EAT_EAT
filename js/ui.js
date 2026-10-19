@@ -294,14 +294,25 @@ function createIngredientPicker({ inputEl, resultsEl, chipListEl, emptyText = "�
 
 /* ---------- Health condition picker ---------- */
 /**
- * สร้างตัวเลือกอาการแพ้/โรคประจำตัวแบบ 2 ระดับ: หมวดใหญ่ (เช่น "แพ้ถั่ว") จะกาง
- * ออกมาเป็นตัวเลือกย่อยที่เจาะจงกว่า (เช่น "แพ้ถั่วลิสง", "แพ้ถั่วเหลือง") ตามคอลัมน์
- * parent_id ของตาราง allergens — ตัวที่ใช้ "เลือก" จริงคือหมวดย่อย (แยกกรองตาม
- * keywords ของตัวเองอย่างเจาะจง) ส่วนหมวดใหญ่เป็นแค่ปุ่มกาง/ยุบ ไม่ใช่ checkbox
- * (ถ้าหมวดใหญ่ไหนไม่มีลูกเลย จะแสดงเป็น checkbox ปกติเหมือนเดิม)
+ * สร้างตัวเลือกอาการแพ้/โรคประจำตัว แบ่งเป็น 2 กลุ่มที่ตรรกะกรองต่างกัน:
+ *
+ *  1) "อาการแพ้อาหาร" (จากตาราง allergens) — แบบ 2 ระดับ: หมวดใหญ่ (เช่น
+ *     "แพ้ถั่ว") จะกางออกมาเป็นตัวเลือกย่อยที่เจาะจงกว่า (เช่น "แพ้ถั่วลิสง")
+ *     ตามคอลัมน์ parent_id — เลือกแล้ว "ตัดเมนูที่มีวัตถุดิบตรงคำสำคัญออกทันที"
+ *     (ถ้าหมวดใหญ่ไหนไม่มีลูกเลย จะแสดงเป็น checkbox ปกติ)
+ *
+ *  2) "โรคที่ต้องจำกัดปริมาณ" (จากตาราง medical_conditions เช่น โรคไต/เบาหวาน/
+ *     ความดัน) — เลือกแล้ว "ไม่ตัดเมนูทันที" แต่จะตัดเฉพาะเมนูที่ปริมาณ
+ *     โซเดียม/น้ำตาลต่อจาน "เกิน" เกณฑ์ของโรคนั้น (ดู recommend-engine.js)
+ *     จึงต้องแยกกลุ่มให้ผู้ใช้เห็นชัดว่าความหมายไม่เหมือนอาการแพ้
+ *
+ * ค่าที่เลือกทั้ง 2 กลุ่มรวมกันเป็นลิสต์เดียว (เหมือนเดิม) ส่งต่อให้
+ * RecommendEngine.recommend() เป็น allergenIds — ตัวเอนจินจะแยกเองว่า id ไหน
+ * อยู่กลุ่มไหนโดยเทียบกับ DataStore.getMedicalConditions()
  */
 function createConditionPicker(gridEl) {
   const allergens = DataStore.getAllergens();
+  const medicalConditions = typeof DataStore.getMedicalConditions === "function" ? DataStore.getMedicalConditions() : [];
   let selected = [];
 
   const topLevel = allergens.filter((a) => !a.parent_id);
@@ -315,7 +326,7 @@ function createConditionPicker(gridEl) {
       </label>`;
   }
 
-  gridEl.innerHTML = topLevel
+  const allergenHtml = topLevel
     .map((a) => {
       const children = childrenOf(a.id);
       if (children.length === 0) {
@@ -337,6 +348,29 @@ function createConditionPicker(gridEl) {
         </div>`;
     })
     .join("");
+
+  const medicalHtml = medicalConditions
+    .map(
+      (c) => `
+        <label class="condition-toggle" data-id="${c.id}">
+          <input type="checkbox" value="${c.id}" />
+          <span>${c.icon} ${c.label}</span>
+        </label>`
+    )
+    .join("");
+
+  // กลุ่มโรคที่จำกัดปริมาณแสดงแยกส่วนชัดเจน พร้อมคำอธิบายสั้น ๆ ว่าความหมาย
+  // ไม่เหมือนอาการแพ้ (ไม่ได้ตัดออกทันที แค่กันเมนูที่เกินปริมาณที่กำหนด)
+  gridEl.innerHTML =
+    allergenHtml +
+    (medicalHtml
+      ? `
+        <div class="condition-section-title" style="grid-column:1 / -1; margin-top:14px;">
+          <strong style="font-size:0.9rem;">โรคที่ต้องจำกัดปริมาณ</strong>
+          <p class="form-note mb-0">ไม่ได้งดทั้งหมด แค่กันเมนูที่โซเดียม/น้ำตาลต่อจานเกินเกณฑ์ของโรคนั้น</p>
+        </div>
+        ${medicalHtml}`
+      : "");
 
   // ปุ่มกาง/ยุบหมวดใหญ่
   gridEl.querySelectorAll(".condition-group-header").forEach((btn) => {
@@ -369,6 +403,14 @@ function createConditionPicker(gridEl) {
       });
     },
   };
+}
+
+/* ---------- ค่าโซเดียม/น้ำตาลต่อเมนู (แสดงเป็นป้ายในรายการแนะนำและหน้ารายละเอียด) ---------- */
+function nutritionTagsHtml(menu) {
+  const fmt = (v, unit) => (v == null ? "ไม่มีข้อมูล" : `${Number(v).toLocaleString("th-TH")} ${unit}`);
+  const cls = (v) => (v == null ? "tag tag-nodata" : "tag");
+  return `<span class="${cls(menu.sodiumMg)}">🧂 โซเดียม ${fmt(menu.sodiumMg, "มก.")}</span>` +
+    `<span class="${cls(menu.sugarG)}">🍬 น้ำตาล ${fmt(menu.sugarG, "ก.")}</span>`;
 }
 
 /* ---------- Menu detail drawer ---------- */
@@ -436,6 +478,9 @@ const MenuDrawer = (() => {
         <span class="tag ${pct === 100 ? "tag-ready" : "tag-missing"}">${pct === 100 ? "ทำได้ทันที" : `ขาด ${totalCount - matchedCount} อย่าง`}</span>
         <span class="tag">ตรงกับวัตถุดิบที่มี ${pct}%</span>
       </div>
+      <h4>ค่าโภชนาการต่อจาน</h4>
+      <div class="row-wrap" style="margin-bottom:6px">${nutritionTagsHtml(menu)}</div>
+      <p class="muted" style="font-size:12px;margin:0 0 18px">เป็นค่าโดยประมาณ ใช้ประกอบการเลือกเมนูเท่านั้น ไม่ใช่คำแนะนำทางการแพทย์</p>
       <h4>ส่วนผสม (${totalCount} รายการ)</h4>
       <div class="stack" style="margin-bottom:22px">${ingredientListHtml}</div>
       <h4>วิธีทำ</h4>

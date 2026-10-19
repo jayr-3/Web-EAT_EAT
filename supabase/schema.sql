@@ -17,6 +17,7 @@ drop table if exists public.profiles cascade;
 drop table if exists public.menus cascade;
 drop table if exists public.ingredients cascade;
 drop table if exists public.allergens cascade;
+drop table if exists public.medical_conditions cascade;
 drop function if exists public.handle_new_user() cascade;
 drop function if exists public.is_admin(uuid) cascade;
 drop function if exists public.prevent_role_escalation() cascade;
@@ -29,7 +30,9 @@ create table if not exists public.menus (
   name text not null,
   image_url text,                                   -- ลิงก์รูปภาพประจำเมนู (แก้ไขได้จากแผงควบคุมแอดมิน)
   ingredients jsonb not null default '[]'::jsonb,  -- [{ "raw": "...", "name": "..." }, ...]
-  steps jsonb not null default '[]'::jsonb          -- ["ขั้นตอนที่ 1", "ขั้นตอนที่ 2", ...]
+  steps jsonb not null default '[]'::jsonb,          -- ["ขั้นตอนที่ 1", "ขั้นตอนที่ 2", ...]
+  sodium_mg int,                                     -- โซเดียมต่อเมนู (มก.) — ใช้กรองโรคไต/ความดัน (null = ไม่ทราบข้อมูล)
+  sugar_g int                                        -- น้ำตาลต่อเมนู (ก.) — ใช้กรองโรคเบาหวาน (null = ไม่ทราบข้อมูล)
 );
 
 alter table public.menus enable row level security;
@@ -73,6 +76,28 @@ alter table public.allergens enable row level security;
 drop policy if exists "allergens_public_read" on public.allergens;
 create policy "allergens_public_read"
   on public.allergens for select
+  using (true);
+
+-- ---------------------------------------------------------
+-- 3b) medical_conditions: โรคประจำตัวที่ "จำกัดปริมาณ" (ไม่ใช่ตัดออกทั้งหมด
+--     แบบอาการแพ้) เช่น โรคไต/เบาหวาน/ความดัน — ตัดเมนูออกเฉพาะเมนูที่
+--     ปริมาณโซเดียม/น้ำตาร "เกิน" เกณฑ์ที่กำหนดต่อโรคนั้นเท่านั้น
+--     (อ่านได้สาธารณะ แก้ไขได้เฉพาะแอดมิน เหมือน allergens)
+-- ---------------------------------------------------------
+create table if not exists public.medical_conditions (
+  id text primary key,        -- เช่น 'kidney', 'diabetes', 'hypertension'
+  label text not null,        -- ป้ายข้อความที่แสดงผล เช่น 'โรคไต (จำกัดโซเดียม)'
+  icon text not null,         -- อิโมจิไอคอนหน้าป้าย
+  max_sodium_mg int,          -- โซเดียมสูงสุดต่อเมนูที่ยอมรับได้ (null = ไม่จำกัดโซเดียม)
+  max_sugar_g int,            -- น้ำตาลสูงสุดต่อเมนูที่ยอมรับได้ (null = ไม่จำกัดน้ำตาล)
+  sort_order int not null default 0
+);
+
+alter table public.medical_conditions enable row level security;
+
+drop policy if exists "medical_conditions_public_read" on public.medical_conditions;
+create policy "medical_conditions_public_read"
+  on public.medical_conditions for select
   using (true);
 
 -- ---------------------------------------------------------
@@ -270,6 +295,22 @@ create policy "allergens_admin_write"
   on public.allergens for all
   using (public.is_admin())
   with check (public.is_admin());
+
+drop policy if exists "medical_conditions_admin_write" on public.medical_conditions;
+create policy "medical_conditions_admin_write"
+  on public.medical_conditions for all
+  using (public.is_admin())
+  with check (public.is_admin());
+
+-- ค่าเริ่มต้น 3 โรค — ตัวเลขเกณฑ์เป็นค่าอ้างอิงเบื้องต้นสำหรับสาธิตระบบเท่านั้น
+-- (โซเดียม/น้ำตาลนับ "ต่อเมนู/จาน" ไม่ใช่ต่อวัน) ควรให้อาจารย์ที่ปรึกษาหรือ
+-- นักโภชนาการตรวจทานก่อนใช้งานจริง แก้ไขทีหลังได้ที่ Supabase Table Editor
+-- -> ตาราง medical_conditions โดยตรง (หน้าเว็บยังไม่มีฟอร์มแก้ไขตารางนี้)
+insert into public.medical_conditions (id, label, icon, max_sodium_mg, max_sugar_g, sort_order) values
+  ('kidney', 'โรคไต (จำกัดโซเดียม)', '🫘', 600, null, 0),
+  ('diabetes', 'โรคเบาหวาน (จำกัดน้ำตาล)', '🩸', null, 15, 1),
+  ('hypertension', 'ความดันโลหิตสูง (จำกัดโซเดียม)', '💓', 700, null, 2)
+on conflict (id) do nothing;
 
 -- ---------------------------------------------------------
 -- 7) Supabase Storage: ที่เก็บไฟล์รูปภาพ

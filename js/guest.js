@@ -68,6 +68,7 @@
             ${match.ratingCount > 0 ? `<span class="tag">★ ${match.avgRating.toFixed(1)} (${match.ratingCount})</span>` : ""}
             <span class="tag">${match.totalCount} ส่วนผสม</span>
           </div>
+          <div class="result-tags" style="margin-top:6px">${nutritionTagsHtml(match.menu)}</div>
         </div>
         <div class="result-action">›</div>
       `;
@@ -82,6 +83,7 @@
     const { results, excludedCount } = RecommendEngine.recommend(DataStore.getMenus(), {
       availableIngredients: available,
       allergenIds,
+      medicalConditions: DataStore.getMedicalConditions(),
     });
     renderResults({ results, excludedCount }, available.length);
   }

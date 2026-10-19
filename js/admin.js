@@ -110,6 +110,11 @@
 
     document.getElementById("menu-ingredients").value = menu.ingredients.map((i) => i.raw).join("\n");
     document.getElementById("menu-steps").value = menu.steps.join("\n");
+    // โซเดียม/น้ำตาลต่อจาน — ใช้กรองเมนูสำหรับโรคไต/เบาหวาน/ความดัน (เว้นว่างได้ถ้ายังไม่ทราบค่า)
+    const sodiumInput = document.getElementById("menu-sodium");
+    const sugarInput = document.getElementById("menu-sugar");
+    if (sodiumInput) sodiumInput.value = menu.sodium_mg ?? "";
+    if (sugarInput) sugarInput.value = menu.sugar_g ?? "";
     menuFormTitle.textContent = `แก้ไขเมนู: ${menu.name}`;
     menuFormCancel.classList.remove("hidden");
     menuForm.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -124,10 +129,16 @@
     menus.forEach((menu) => {
       const row = document.createElement("div");
       row.className = "admin-row";
+      const nutritionMeta =
+        menu.sodium_mg != null || menu.sugar_g != null
+          ? ` · ${menu.sodium_mg != null ? `โซเดียม ${menu.sodium_mg}มก.` : "ไม่ทราบโซเดียม"} / ${
+              menu.sugar_g != null ? `น้ำตาล ${menu.sugar_g}ก.` : "ไม่ทราบน้ำตาล"
+            }`
+          : " · ยังไม่มีข้อมูลโซเดียม/น้ำตาล";
       row.innerHTML = `
         <div class="info">
           <div class="title">#${menu.id} ${menu.name}</div>
-          <div class="meta">${menu.ingredients.length} วัตถุดิบ · ${menu.steps.length} ขั้นตอน</div>
+          <div class="meta">${menu.ingredients.length} วัตถุดิบ · ${menu.steps.length} ขั้นตอน${nutritionMeta}</div>
         </div>
         <div class="actions">
           <button class="btn btn-outline btn-sm" data-action="edit">แก้ไข</button>
@@ -179,12 +190,19 @@
 
     const nextId = idVal ? Number(idVal) : (menus.reduce((max, m) => Math.max(max, m.id), 0) || 0) + 1;
 
+    // โซเดียม/น้ำตาลต่อจาน — เว้นว่างได้ถ้ายังไม่ทราบค่าจริง (เก็บเป็น null ไม่ใช่ 0
+    // เพื่อให้ระบบรู้ว่า "ยังไม่มีข้อมูล" ต่างจาก "มีค่าเท่ากับศูนย์จริง ๆ")
+    const sodiumRaw = document.getElementById("menu-sodium")?.value.trim();
+    const sugarRaw = document.getElementById("menu-sugar")?.value.trim();
+
     const menu = {
       id: nextId,
       name: document.getElementById("menu-name").value.trim(),
       image_url: imageUrl, // [เพิ่ม] ส่ง image_url ไปบันทึก
       ingredients: ingredientLines.map((raw) => ({ raw, name: cleanIngredientName(raw) })),
       steps: stepLines,
+      sodium_mg: sodiumRaw ? Number(sodiumRaw) : null,
+      sugar_g: sugarRaw ? Number(sugarRaw) : null,
     };
 
     const submitBtn = menuForm.querySelector('button[type="submit"]');

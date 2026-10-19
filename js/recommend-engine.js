@@ -2,26 +2,26 @@
  * recommend-engine.js
  * ---------------------------------------------------------------
  * แกนหลักของ "ระบบแนะนำเมนูอาหาร" — ใช้เทคนิคการแนะนำแบบมีเงื่อนไข
- * (Constraint-based Recommendation) แบ่งการทำงานเป็น 3 ขั้นตอนตามลำดับ
- * ตรงตามกระบวนการที่ออกแบบไว้ในโครงร่างปัญหาพิเศษ:
+ * (Constraint-based Recommendation) แบ่งการทำงานเป็นชั้น (Layer) ตามลำดับ
+ * โดย "ความปลอดภัยมาก่อนความชอบ" คือกรองอาการแพ้/โรคก่อน แล้วค่อยจับคู่วัตถุดิบ:
  *
- *  1) การจับคู่ข้อมูล (Ingredient Matching)
- *     นำรายการวัตถุดิบที่ผู้ใช้ป้อนเข้ามา ไปเปรียบเทียบกับส่วนผสมของเมนูอาหาร
- *     ในฐานข้อมูลทีละเมนู เพื่อคัดกรองเบื้องต้นว่ามีเมนูใดบ้างที่สามารถ
- *     ประกอบขึ้นได้ (บางส่วนหรือทั้งหมด) จากวัตถุดิบชุดนี้
+ *  เมนูทั้งหมด
+ *    ▼ Layer 1a กรองอาการแพ้      — ตัดเมนูที่มีวัตถุดิบตรงคำสำคัญของสิ่งที่แพ้ (เด็ดขาด)
+ *    ▼ Layer 1b กรองโรคประจำตัว   — ตัดเมนูที่โซเดียม/น้ำตาลเกินเกณฑ์ของโรคที่เลือก
+ *    ▼ Layer 2  จับคู่วัตถุดิบ      — เก็บเฉพาะเมนูที่ใช้วัตถุดิบที่ผู้ใช้มีอย่างน้อย 1 อย่าง
+ *    ▼ Layer 3  จัดอันดับ          — คะแนนเฉลี่ย → จำนวนผู้ให้คะแนน → % วัตถุดิบตรง
+ *  เมนูแนะนำ
  *
- *  2) การคัดกรองข้อมูล (Safety Filter)
- *     นำเงื่อนไขอาการแพ้ / โรคประจำตัวที่ผู้ใช้เลือกไว้ มาสร้างเป็นเงื่อนไข
- *     ตัดออก แล้วตรวจสอบซ้อนกับผลลัพธ์จากขั้นตอนที่ 1 — เมนูใดมีวัตถุดิบ
- *     ตรงกับเงื่อนไขอาการแพ้แม้แต่รายการเดียว จะถูกตัดออกทันที เพื่อการันตี
- *     ว่าผลลัพธ์สุดท้ายเป็นเมนูที่ปลอดภัย 100%
- *
- *  3) การคำนวณคะแนนและจัดลำดับ (Scoring & Ranking)
- *     นำเมนูที่ผ่านการคัดกรองความปลอดภัยแล้วมาจัดเรียงลำดับการแสดงผล โดยใช้
- *     "คะแนนความนิยม" — ค่าเฉลี่ยรีวิว (1-5 ดาว) ที่สมาชิกคนอื่นเคยให้ไว้กับ
- *     เมนูนั้น เรียงจากมากไปน้อย (เมนูที่ยังไม่มีรีวิวถือว่าคะแนนความนิยม = 0
- *     จึงอยู่ท้ายแถว ไม่ได้ถูกตัดออก) ถ้าคะแนนเฉลี่ยเท่ากัน ใช้ "จำนวนรีวิว"
- *     มากไปน้อยตัดสินรอง
+ *  1a) อาการแพ้อาหาร (เช่น แพ้นม/ไข่/ถั่ว) — เมนูใดมีวัตถุดิบตรงกับ
+ *      เงื่อนไขอาการแพ้แม้แต่รายการเดียว จะถูกตัดออกทันที (100% exclusion)
+ *  1b) โรคที่ "จำกัดปริมาณ" (โรคไต / เบาหวาน / ความดันโลหิตสูง) — ไม่ได้
+ *      ห้ามกินวัตถุดิบใด ๆ แต่จะตัดเฉพาะเมนูที่ปริมาณโซเดียม/น้ำตาลต่อจาน
+ *      "เกิน" เกณฑ์สูงสุดที่กำหนดไว้ของโรคนั้นเท่านั้น
+ *  2)  การจับคู่ข้อมูล (Ingredient Matching) — เทียบวัตถุดิบที่ผู้ใช้มีกับส่วนผสม
+ *      ของเมนูที่ผ่านการกรองแล้ว
+ *  3)  การคำนวณคะแนนและจัดลำดับ — ใช้ "คะแนนความนิยม" (ค่าเฉลี่ยรีวิว 1-5 ดาว)
+ *      เรียงจากมากไปน้อย (เมนูที่ยังไม่มีรีวิวถือว่าคะแนน = 0 จึงอยู่ท้ายแถว
+ *      ไม่ได้ถูกตัดออก) ถ้าเท่ากันใช้ "จำนวนรีวิว" ตัดสินรอง แล้วจึงใช้ % วัตถุดิบตรง
  * ---------------------------------------------------------------
  */
 
@@ -52,7 +52,7 @@ const RecommendEngine = (() => {
   }
 
   /**
-   * ขั้นตอนที่ 1: การจับคู่ข้อมูล
+   * Layer 2: การจับคู่ข้อมูล
    * เทียบวัตถุดิบที่ผู้ใช้มีกับส่วนผสมของแต่ละเมนู คืนรายการเมนูพร้อมรายละเอียด
    * การจับคู่ (matched/missing/pct) — ถ้าผู้ใช้ไม่ได้กรอกวัตถุดิบเลย ถือว่ายัง
    * ไม่มีเงื่อนไขกรอง จึงคืนเมนูทั้งหมดไว้ก่อน (ให้ขั้นตอนที่ 3 จัดอันดับด้วย
@@ -90,16 +90,52 @@ const RecommendEngine = (() => {
   }
 
   /**
-   * ขั้นตอนที่ 2: การคัดกรองข้อมูล (ความปลอดภัยจากอาการแพ้)
-   * ตัดรายการที่ menu.allergenTags มีค่าตรงกับอาการแพ้ที่เลือกไว้แม้แต่ข้อเดียวออก
+   * Layer 1a + 1b: การคัดกรองความปลอดภัย (ทำกับ "เมนูทั้งหมด" ก่อนจับคู่วัตถุดิบ)
+   * แยกเงื่อนไขที่เลือกไว้ (selectedIds) เป็น 2 แบบ ตรรกะไม่เหมือนกัน
+   * และต้องผ่านทุกเงื่อนไขพร้อมกัน (AND) — คืน { safe, unsafe }
+   *
+   *  1a) อาการแพ้อาหาร (เช่น แพ้นม/ไข่/ถั่ว) — ตัดเมนูที่ menu.allergenTags
+   *      มีค่าตรงกับอาการแพ้ที่เลือกไว้แม้แต่ข้อเดียวออกทันที (100% exclusion)
+   *
+   *  1b) โรคที่ "จำกัดปริมาณ" (เช่น โรคไต/เบาหวาน/ความดัน จาก medicalConditions
+   *      ที่ DataStore.getMedicalConditions() ส่งมา) — "ไม่ได้ห้ามกินทั้งหมด"
+   *      ตัดเฉพาะเมนูที่ปริมาณโซเดียม/น้ำตาลต่อจาน "เกิน" เกณฑ์สูงสุดของโรคนั้น
+   *      (max_sodium_mg / max_sugar_g) เท่านั้น — ถ้าเมนูยังไม่มีข้อมูลโภชนาการ
+   *      (sodiumMg/sugarG เป็น null เพราะแอดมินยังไม่ได้กรอก) จะไม่ตัดออก เพื่อ
+   *      กันไม่ให้เมนูทั้งหมดหายไปจากผลลัพธ์ก่อนมีข้อมูลจริงครบ
    */
-  function filterByHealthConditions(matchedList, selectedAllergenIds) {
-    if (!selectedAllergenIds || selectedAllergenIds.length === 0) return matchedList.slice();
-    return matchedList.filter((item) => !item.menu.allergenTags.some((tag) => selectedAllergenIds.includes(tag)));
+  function filterByHealthConditions(menus, selectedIds, medicalConditions = []) {
+    if (!selectedIds || selectedIds.length === 0) return { safe: menus.slice(), unsafe: [] };
+
+    const medicalById = new Map(medicalConditions.map((c) => [c.id, c]));
+    const selectedMedicalIds = selectedIds.filter((id) => medicalById.has(id));
+    const selectedAllergenIds = selectedIds.filter((id) => !medicalById.has(id));
+
+    const safe = [];
+    const unsafe = [];
+    menus.forEach((menu) => {
+      if (isMenuSafe(menu, selectedAllergenIds, selectedMedicalIds, medicalById)) safe.push(menu);
+      else unsafe.push(menu);
+    });
+    return { safe, unsafe };
+  }
+
+  function isMenuSafe(menu, selectedAllergenIds, selectedMedicalIds, medicalById) {
+    // 1a) อาการแพ้อาหาร — ตัดทันทีถ้ามีวัตถุดิบตรงคำสำคัญ
+    if (menu.allergenTags.some((tag) => selectedAllergenIds.includes(tag))) return false;
+
+    // 1b) โรคที่จำกัดปริมาณ — ตัดเฉพาะเมนูที่ "เกิน" เกณฑ์ของโรคที่เลือกไว้
+    for (const condId of selectedMedicalIds) {
+      const cond = medicalById.get(condId);
+      if (!cond) continue;
+      if (cond.maxSodiumMg != null && menu.sodiumMg != null && menu.sodiumMg > cond.maxSodiumMg) return false;
+      if (cond.maxSugarG != null && menu.sugarG != null && menu.sugarG > cond.maxSugarG) return false;
+    }
+    return true;
   }
 
   /**
-   * ขั้นตอนที่ 3: การคำนวณคะแนนและจัดลำดับ
+   * Layer 3: การคำนวณคะแนนและจัดลำดับ
    * เรียงตามคะแนนเฉลี่ยรีวิว (1-5 ดาว) จากมากไปน้อยเป็นหลัก ถ้าคะแนนเฉลี่ย
    * เท่ากัน ใช้ "จำนวนรีวิว" มากไปน้อยเป็นตัวตัดสินรอง (เมนูที่มีคนรีวิวเยอะ
    * กว่าในคะแนนเฉลี่ยเท่ากันถือว่าน่าเชื่อถือกว่า) ถ้ายังเท่ากันอีก (เช่น
@@ -123,17 +159,24 @@ const RecommendEngine = (() => {
     return matchedList.map((item) => ({ ...item, isFavorite: favoriteMenuIds.has(item.menu.id) }));
   }
 
-  /** จุดเรียกใช้งานหลัก: รันครบทั้ง 3 ขั้นตอนตามลำดับ */
-  function recommend(menus, { availableIngredients = [], allergenIds = [], favoriteMenuIds = new Set() } = {}) {
-    const matched = matchByIngredients(menus, availableIngredients); // 1) จับคู่ข้อมูล
-    const safe = filterByHealthConditions(matched, allergenIds); // 2) คัดกรองความปลอดภัย
-    const ranked = rankByPopularity(safe); // 3) คำนวณคะแนนและจัดลำดับ
+  /** จุดเรียกใช้งานหลัก: รันครบทุก Layer ตามลำดับ 1a/1b → 2 → 3 */
+  function recommend(
+    menus,
+    { availableIngredients = [], allergenIds = [], medicalConditions = [], favoriteMenuIds = new Set() } = {}
+  ) {
+    // Layer 1a + 1b: คัดกรองความปลอดภัย (อาการแพ้ + โรคที่จำกัดปริมาณ) จากเมนูทั้งหมด
+    const { safe, unsafe } = filterByHealthConditions(menus, allergenIds, medicalConditions);
+    // Layer 2: จับคู่วัตถุดิบเฉพาะเมนูที่ปลอดภัย
+    const matched = matchByIngredients(safe, availableIngredients);
+    // Layer 3: คำนวณคะแนนและจัดลำดับ
+    const ranked = rankByPopularity(matched);
     const results = withFavoriteFlag(ranked, favoriteMenuIds);
 
-    return {
-      results,
-      excludedCount: matched.length - safe.length,
-    };
+    // จำนวนเมนู "ที่จะแสดงให้ผู้ใช้ถ้าไม่มีการกรองความปลอดภัย" แต่ถูกคัดออก
+    // (นับเฉพาะเมนูที่ตรงกับวัตถุดิบที่ผู้ใช้มี เพื่อไม่ให้ตัวเลขสับสน)
+    const excludedCount = unsafe.length > 0 ? matchByIngredients(unsafe, availableIngredients).length : 0;
+
+    return { results, excludedCount };
   }
 
   return { ingredientMatches, matchByIngredients, filterByHealthConditions, rankByPopularity, recommend };

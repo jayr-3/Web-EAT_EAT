@@ -639,6 +639,7 @@ button { font-family: inherit; }
 }
 .tag-ready { background: var(--success-tint); color: var(--success-dark); }
 .tag-missing { background: var(--primary-tint); color: var(--primary-darker); }
+.tag-nodata { opacity: .6; font-style: italic; }
 .tag-fave { background: var(--danger-tint); color: var(--danger-dark); }
 
 .result-action { color: var(--ink-faint); font-size: 1.3rem; }
