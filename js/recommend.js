@@ -61,16 +61,13 @@
     if (hasSearched) runRecommendation();
   }
 
-  function renderResults({ results, excludedCount }) {
+  function renderResults({ results, excluded = [] }) {
     if (results.length === 0) {
-      summaryEl.textContent = "";
+      summaryEl.innerHTML = excluded.length ? resultSummaryHtml(0, excluded) : "";
       renderEmpty("ไม่พบเมนูที่ปลอดภัยตามเงื่อนไขที่เลือก ลองปรับอาการแพ้หรือวัตถุดิบดูใหม่", "🚫");
       return;
     }
-    summaryEl.textContent =
-      excludedCount > 0
-        ? `พบ ${results.length} เมนูที่ปลอดภัยสำหรับคุณ (คัดออกไปแล้ว ${excludedCount} เมนู) · เรียงตามคะแนนความนิยม`
-        : `พบ ${results.length} เมนูที่ตรงกับวัตถุดิบของคุณ · เรียงตามคะแนนความนิยม`;
+    summaryEl.innerHTML = resultSummaryHtml(results.length, excluded);
 
     listEl.innerHTML = "";
     const defaultImage = "https://placehold.co/150x150?text=No+Image";
@@ -86,10 +83,10 @@
       row.style.alignItems = "center";
 
       row.innerHTML = `
-        <img src="${imageUrl}" alt="${match.menu.name}" onerror="this.src='${defaultImage}'" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;" />
+        <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(match.menu.name)}" onerror="this.src='${defaultImage}'" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;" />
         <div class="match-ring" style="--pct:${match.pct}" data-pct="${match.pct}"></div>
         <div>
-          <div class="result-title">${match.menu.name}</div>
+          <div class="result-title">${escapeHtml(match.menu.name)}</div>
           <div class="result-tags">
             ${match.ready ? '<span class="tag tag-ready">ทำได้ทันที</span>' : `<span class="tag tag-missing">ขาด ${match.totalCount - match.matchedCount} อย่าง</span>`}
             ${match.isFavorite ? '<span class="tag tag-fave">♥ เมนูโปรด</span>' : ""}

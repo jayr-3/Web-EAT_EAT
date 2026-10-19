@@ -137,7 +137,7 @@
           : " · ยังไม่มีข้อมูลโซเดียม/น้ำตาล";
       row.innerHTML = `
         <div class="info">
-          <div class="title">#${menu.id} ${menu.name}</div>
+          <div class="title">#${menu.id} ${escapeHtml(menu.name)}</div>
           <div class="meta">${menu.ingredients.length} วัตถุดิบ · ${menu.steps.length} ขั้นตอน${nutritionMeta}</div>
         </div>
         <div class="actions">
@@ -249,7 +249,7 @@
   function renderIngredients() {
     const categories = [...new Set(ingredientsList.map((i) => i.category).filter(Boolean))];
     document.getElementById("ingredient-category-options").innerHTML = categories
-      .map((c) => `<option value="${c}"></option>`)
+      .map((c) => `<option value="${escapeHtml(c)}"></option>`)
       .join("");
 
     if (ingredientsList.length === 0) {
@@ -262,8 +262,8 @@
       row.className = "admin-row";
       row.innerHTML = `
         <div class="info">
-          <div class="title">${ing.name}</div>
-          <div class="meta">${ing.category || "ไม่ระบุหมวดหมู่"}</div>
+          <div class="title">${escapeHtml(ing.name)}</div>
+          <div class="meta">${escapeHtml(ing.category || "ไม่ระบุหมวดหมู่")}</div>
         </div>
         <div class="actions">
           <button class="btn btn-outline btn-sm" data-action="edit">แก้ไข</button>
@@ -336,7 +336,7 @@
     const topLevelOptions = allergensList.filter((a) => !a.parent_id && a.id !== excludeId);
     allergenParentSelect.innerHTML =
       `<option value="">— ไม่มี (เป็นหมวดหมู่หลักเอง) —</option>` +
-      topLevelOptions.map((a) => `<option value="${a.id}">${a.icon} ${a.label}</option>`).join("");
+      topLevelOptions.map((a) => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.icon)} ${escapeHtml(a.label)}</option>`).join("");
   }
 
   function resetAllergenForm() {
@@ -372,9 +372,9 @@
 
     function rowHtml(a, isChild) {
       return `
-        <div class="admin-row${isChild ? " admin-row-sub" : ""}" data-id="${a.id}" style="${isChild ? "margin-left:24px; border-style:dashed;" : ""}">
+        <div class="admin-row${isChild ? " admin-row-sub" : ""}" data-id="${escapeHtml(a.id)}" style="${isChild ? "margin-left:24px; border-style:dashed;" : ""}">
           <div class="info">
-            <div class="title">${a.icon} ${a.label} <span class="meta">(${a.id})</span></div>
+            <div class="title">${escapeHtml(a.icon)} ${escapeHtml(a.label)} <span class="meta">(${escapeHtml(a.id)})</span></div>
             <div class="meta">คำสำคัญ: ${a.keywords.join(", ")}</div>
           </div>
           <div class="actions">
@@ -466,8 +466,8 @@
       row.className = "admin-row";
       row.innerHTML = `
         <div class="info">
-          <div class="title">${u.name || "(ไม่ระบุชื่อ)"} ${isMe ? '<span class="meta">(คุณ)</span>' : ""}</div>
-          <div class="meta">${u.email || "-"}</div>
+          <div class="title">${escapeHtml(u.name || "(ไม่ระบุชื่อ)")} ${isMe ? '<span class="meta">(คุณ)</span>' : ""}</div>
+          <div class="meta">${escapeHtml(u.email || "-")}</div>
         </div>
         <div class="actions" style="flex-wrap:wrap; justify-content:flex-end">
           <span class="admin-badge ${u.role === "admin" ? "is-admin" : ""}">${u.role === "admin" ? "แอดมิน" : "สมาชิก"}</span>
@@ -551,25 +551,25 @@
       const conditionLabels = (p.health_conditions || [])
         .map((id) => {
           const a = allergens.find((x) => x.id === id);
-          return a ? `${a.icon} ${a.label}` : id;
+          return a ? `${escapeHtml(a.icon)} ${escapeHtml(a.label)}` : escapeHtml(id);
         });
       const createdAt = p.created_at
         ? new Date(p.created_at).toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })
         : "-";
       const avatarHtml = p.avatar_url
-        ? `<img src="${p.avatar_url}" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover" />`
-        : `<div class="avatar" style="width:64px;height:64px;font-size:1.4rem">${(p.name || p.email || "?").trim().charAt(0).toUpperCase()}</div>`;
+        ? `<img src="${escapeHtml(p.avatar_url)}" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover" />`
+        : `<div class="avatar" style="width:64px;height:64px;font-size:1.4rem">${escapeHtml((p.name || p.email || "?").trim().charAt(0).toUpperCase())}</div>`;
 
       userDrawerBody.innerHTML = `
         <div class="row" style="margin-bottom:20px; gap:16px;">
           ${avatarHtml}
           <div>
-            <div style="font-weight:700; font-size:1.1rem">${p.name || "(ไม่ระบุชื่อ)"}</div>
+            <div style="font-weight:700; font-size:1.1rem">${escapeHtml(p.name || "(ไม่ระบุชื่อ)")}</div>
             <span class="admin-badge ${p.role === "admin" ? "is-admin" : ""}">${p.role === "admin" ? "แอดมิน" : "สมาชิก"}</span>
           </div>
         </div>
         <div class="stack" style="gap:10px; margin-bottom:22px">
-          <div class="ingredient-line"><span>อีเมล</span><span>${p.email || "-"}</span></div>
+          <div class="ingredient-line"><span>อีเมล</span><span>${escapeHtml(p.email || "-")}</span></div>
           <div class="ingredient-line"><span>อายุ</span><span>${p.age ?? "-"}</span></div>
           <div class="ingredient-line"><span>น้ำหนัก</span><span>${p.weight_kg ? p.weight_kg + " กก." : "-"}</span></div>
           <div class="ingredient-line"><span>ส่วนสูง</span><span>${p.height_cm ? p.height_cm + " ซม." : "-"}</span></div>
@@ -587,7 +587,7 @@
                   .map((f) => {
                     const menu = DataStore.getMenuById(f.menu_id);
                     const stars = f.rating ? `${"★".repeat(f.rating)}${"☆".repeat(5 - f.rating)}` : "ยังไม่ให้คะแนน";
-                    return `<div class="ingredient-line"><span>${menu ? menu.name : `เมนู #${f.menu_id}`}</span><span>${stars}</span></div>`;
+                    return `<div class="ingredient-line"><span>${menu ? escapeHtml(menu.name) : `เมนู #${escapeHtml(f.menu_id)}`}</span><span>${stars}</span></div>`;
                   })
                   .join("")
               : '<p class="form-note" style="margin:0">ยังไม่มีเมนูโปรด</p>'

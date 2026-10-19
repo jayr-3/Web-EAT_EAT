@@ -76,9 +76,9 @@
       row.style.alignItems = "center";
       
       row.innerHTML = `
-        <img src="${imageUrl}" alt="${match.menu.name}" onerror="this.src='${defaultImage}'" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;" />
+        <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(match.menu.name)}" onerror="this.src='${defaultImage}'" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;" />
         <div>
-          <div class="result-title">${match.menu.name}</div>
+          <div class="result-title">${escapeHtml(match.menu.name)}</div>
           <div class="result-tags">
             <span class="tag tag-fave">♥ เมนูโปรด</span>
             ${match.rating ? `<span class="tag">${"★".repeat(match.rating)}${"☆".repeat(5 - match.rating)}</span>` : '<span class="tag">ยังไม่ได้ให้คะแนน</span>'}

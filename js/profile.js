@@ -9,7 +9,7 @@ function paintAvatars(avatarUrl, fallbackLetter) {
       el.style.background = "transparent";
       el.style.overflow = "hidden";
       el.style.padding = "0";
-      el.innerHTML = `<img src="${avatarUrl}" style="width:100%; height:100%; aspect-ratio:1/1; object-fit:cover; border-radius:50%; display:block;" alt="" />`;
+      el.innerHTML = `<img src="${escapeHtml(avatarUrl)}" style="width:100%; height:100%; aspect-ratio:1/1; object-fit:cover; border-radius:50%; display:block;" alt="" />`;
     } else {
       el.style.background = "";
       el.style.overflow = "";
@@ -55,7 +55,7 @@ function paintAvatars(avatarUrl, fallbackLetter) {
     statAllergiesList.innerHTML = userConditions
       .map((id) => {
         const found = allergens.find((a) => a.id === id);
-        return found ? `${found.icon} ${found.label}` : id;
+        return found ? `${escapeHtml(found.icon)} ${escapeHtml(found.label)}` : escapeHtml(id);
       })
       .join("<br>");
     statAllergiesList.style.color = "#333";
@@ -87,9 +87,9 @@ function paintAvatars(avatarUrl, fallbackLetter) {
           const img = menu.image_url && menu.image_url.trim() !== "" ? menu.image_url : defaultImg;
           return `
             <div style="display: flex; gap: 16px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #eee;">
-              <img src="${img}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;" alt="${menu.name}" onerror="this.src='${defaultImg}'">
+              <img src="${escapeHtml(img)}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;" alt="${escapeHtml(menu.name)}" onerror="this.src='${defaultImg}'">
               <div>
-                <h4 style="margin: 0 0 4px 0;">${menu.name}</h4>
+                <h4 style="margin: 0 0 4px 0;">${escapeHtml(menu.name)}</h4>
                 <div style="color: #FF5A1F; letter-spacing: 2px; font-size: 1.2rem;">${stars}</div>
                 <div style="font-size: 0.8rem; color: #999; margin-top: 4px;">ให้คะแนนเมื่อ: ${new Date(item.created_at).toLocaleDateString("th-TH")}</div>
               </div>

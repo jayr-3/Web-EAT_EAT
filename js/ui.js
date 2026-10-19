@@ -7,6 +7,20 @@
  * ---------------------------------------------------------------
  */
 
+/**
+ * escapeHtml — แปลงอักขระพิเศษของ HTML ก่อนนำข้อความที่มาจากผู้ใช้/ฐานข้อมูล
+ * (ชื่อผู้ใช้ อีเมล ชื่อเมนู ลิงก์รูป ฯลฯ) ไปใส่ใน innerHTML ป้องกัน XSS
+ * (เช่น ชื่อที่ตั้งเป็น <img onerror=...> จะแสดงเป็นข้อความธรรมดา ไม่ถูกรันเป็นโค้ด)
+ */
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /* ---------- ธีมมืด/สว่าง ---------- */
 /**
  * จัดเก็บ/อ่าน/สลับธีมผ่าน data-theme บน <html> + localStorage
@@ -104,17 +118,17 @@ function renderAppShell({ activePage, user, profile }) {
       : "";
 
   const avatarContent = avatarUrl 
-    ? `<img src="${avatarUrl}" alt="Profile" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">` 
-    : initial;
+    ? `<img src="${escapeHtml(avatarUrl)}" alt="Profile" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">` 
+    : escapeHtml(initial);
 
   const sidebarEl = document.getElementById("app-sidebar");
   if (sidebarEl) {
     sidebarEl.innerHTML = `
-      <a href="recommend.html" class="sidebar-brand"><span class="brand-mark">🍲</span> กินอะไรดี</a>
+      <a href="recommend.html" class="sidebar-brand"><span class="brand-mark">🍲</span> EAT EAT</a>
       <div class="sidebar-user">
         <div class="avatar avatar-sidebar">${avatarContent}</div>
         <div class="sidebar-user-info">
-          <div class="sidebar-user-name">${displayName}</div>
+          <div class="sidebar-user-name">${escapeHtml(displayName)}</div>
           <span class="role-badge role-badge-${role}">${role === "admin" ? "แอดมิน" : "สมาชิก"}</span>
         </div>
       </div>
@@ -130,18 +144,18 @@ function renderAppShell({ activePage, user, profile }) {
   const mobileTopbar = document.querySelector(".mobile-topbar");
   if (mobileTopbar) {
     const userBadgeIcon = avatarUrl
-      ? `<img src="${avatarUrl}" alt="User" style="width:26px; height:26px; border-radius:50%; object-fit:cover;">`
-      : `<span style="width:26px; height:26px; border-radius:50%; background:#FF5A1F; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold;">${initial}</span>`;
+      ? `<img src="${escapeHtml(avatarUrl)}" alt="User" style="width:26px; height:26px; border-radius:50%; object-fit:cover;">`
+      : `<span style="width:26px; height:26px; border-radius:50%; background:#FF5A1F; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold;">${escapeHtml(initial)}</span>`;
 
     mobileTopbar.innerHTML = `
       <div style="display:flex; align-items:center; gap:8px;">
         <button type="button" class="mobile-topbar-toggle" aria-label="เปิดเมนู">☰</button>
-        <a href="home.html" class="brand" style="text-decoration:none; font-weight:bold; color:inherit;"><span class="brand-mark">🍲</span> กินอะไรดี</a>
+        <a href="home.html" class="brand" style="text-decoration:none; font-weight:bold; color:inherit;"><span class="brand-mark">🍲</span> EAT EAT</a>
       </div>
       <div class="mobile-user-status" style="display:flex; align-items:center; gap:10px; font-size:0.85rem; font-weight:500; color:var(--ink);">
         <button type="button" class="theme-toggle" data-theme-toggle style="width:32px; height:32px; font-size:0.95rem;"></button>
         ${userBadgeIcon}
-        <span style="max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${displayName}</span>
+        <span style="max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(displayName)}</span>
       </div>
     `;
   }
@@ -223,7 +237,7 @@ function createIngredientPicker({ inputEl, resultsEl, chipListEl, emptyText = "�
     selected.forEach((name) => {
       const chip = document.createElement("span");
       chip.className = "chip";
-      chip.innerHTML = `${name} <button type="button" aria-label="ลบ ${name}">✕</button>`;
+      chip.innerHTML = `${escapeHtml(name)} <button type="button" aria-label="ลบ ${escapeHtml(name)}">✕</button>`;
       chip.querySelector("button").addEventListener("click", () => {
         selected = selected.filter((n) => n !== name);
         renderChips();
@@ -254,7 +268,7 @@ function createIngredientPicker({ inputEl, resultsEl, chipListEl, emptyText = "�
     matches.forEach((ing) => {
       const opt = document.createElement("div");
       opt.className = "picker-option";
-      opt.innerHTML = `<span>${ing.name}</span><span class="cat">${ing.category}</span>`;
+      opt.innerHTML = `<span>${escapeHtml(ing.name)}</span><span class="cat">${escapeHtml(ing.category)}</span>`;
       opt.addEventListener("mousedown", (e) => {
         e.preventDefault();
         addIngredient(ing.name);
@@ -320,9 +334,9 @@ function createConditionPicker(gridEl) {
 
   function childCheckboxHtml(a) {
     return `
-      <label class="condition-toggle condition-toggle-sub" data-id="${a.id}">
-        <input type="checkbox" value="${a.id}" />
-        <span>${a.icon} ${a.label}</span>
+      <label class="condition-toggle condition-toggle-sub" data-id="${escapeHtml(a.id)}">
+        <input type="checkbox" value="${escapeHtml(a.id)}" />
+        <span>${escapeHtml(a.icon)} ${escapeHtml(a.label)}</span>
       </label>`;
   }
 
@@ -331,15 +345,15 @@ function createConditionPicker(gridEl) {
       const children = childrenOf(a.id);
       if (children.length === 0) {
         return `
-          <label class="condition-toggle" data-id="${a.id}">
-            <input type="checkbox" value="${a.id}" />
-            <span>${a.icon} ${a.label}</span>
+          <label class="condition-toggle" data-id="${escapeHtml(a.id)}">
+            <input type="checkbox" value="${escapeHtml(a.id)}" />
+            <span>${escapeHtml(a.icon)} ${escapeHtml(a.label)}</span>
           </label>`;
       }
       return `
-        <div class="condition-group" data-group-id="${a.id}">
+        <div class="condition-group" data-group-id="${escapeHtml(a.id)}">
           <button type="button" class="condition-group-header">
-            <span>${a.icon} ${a.label}</span>
+            <span>${escapeHtml(a.icon)} ${escapeHtml(a.label)}</span>
             <span class="condition-group-chevron">⌄</span>
           </button>
           <div class="condition-group-children">
@@ -354,7 +368,7 @@ function createConditionPicker(gridEl) {
       (c) => `
         <label class="condition-toggle" data-id="${c.id}">
           <input type="checkbox" value="${c.id}" />
-          <span>${c.icon} ${c.label}</span>
+          <span>${escapeHtml(c.icon)} ${escapeHtml(c.label)}</span>
         </label>`
     )
     .join("");
@@ -413,6 +427,45 @@ function nutritionTagsHtml(menu) {
     `<span class="${cls(menu.sugarG)}">🍬 น้ำตาล ${fmt(menu.sugarG, "ก.")}</span>`;
 }
 
+/* ---------- สรุปผลการแนะนำ + เหตุผลที่เมนูถูกคัดออก (อาการแพ้ / โรคประจำตัว) ---------- */
+function resultSummaryHtml(resultCount, excluded = []) {
+  if (!excluded.length) {
+    return escapeHtml(`พบ ${resultCount} เมนูที่ตรงกับวัตถุดิบของคุณ · เรียงตามคะแนนความนิยม`);
+  }
+  const allergens = DataStore.getAllergens();
+  const medicalById = new Map(DataStore.getMedicalConditions().map((c) => [c.id, c]));
+  const allergenLabel = (id) => allergens.find((a) => a.id === id)?.label || id;
+  const condName = (c) => (c?.label || "").replace(/\s*\(.*?\)\s*/g, "").trim() || "โรคประจำตัว";
+
+  const reasonText = (r) => {
+    if (r.type === "allergy") return `มีวัตถุดิบที่ทำให้แพ้ (${allergenLabel(r.id)})`;
+    const name = condName(medicalById.get(r.condId));
+    const label = r.nutrient === "sodium" ? "โซเดียม" : "น้ำตาล";
+    const unit = r.nutrient === "sodium" ? "มก." : "ก.";
+    return `${label} ${r.value.toLocaleString("th-TH")} ${unit} เกินเกณฑ์${name} (ไม่เกิน ${r.limit.toLocaleString("th-TH")} ${unit}ต่อมื้อ)`;
+  };
+
+  const byAllergy = excluded.filter((e) => e.reasons.some((r) => r.type === "allergy")).length;
+  const byMedical = excluded.filter((e) => e.reasons.some((r) => r.type === "medical")).length;
+  const parts = [];
+  if (byAllergy) parts.push(`${byAllergy} เมนูเพราะอาการแพ้`);
+  if (byMedical) parts.push(`${byMedical} เมนูเพราะเกินเกณฑ์โรคประจำตัว`);
+
+  const items = excluded
+    .map(
+      (e) =>
+        `<li><strong>${escapeHtml(e.menu.name)}</strong> — ${e.reasons.map((r) => escapeHtml(reasonText(r))).join(" · ")}</li>`
+    )
+    .join("");
+
+  return (
+    escapeHtml(`พบ ${resultCount} เมนูที่ปลอดภัยสำหรับคุณ · เรียงตามคะแนนความนิยม`) +
+    `<br><span>คัดออกไปแล้ว ${excluded.length} เมนู (${escapeHtml(parts.join(" · "))})</span>` +
+    `<details style="margin-top:4px"><summary style="cursor:pointer">ดูเหตุผลที่คัดออก</summary>` +
+    `<ul style="margin:6px 0 0 18px;padding:0">${items}</ul></details>`
+  );
+}
+
 /* ---------- Menu detail drawer ---------- */
 const MenuDrawer = (() => {
   let overlayEl, drawerBodyEl, drawerFootEl, drawerTitleEl;
@@ -457,14 +510,14 @@ const MenuDrawer = (() => {
       .map((ing) => {
         const isMissing = missing.some((m) => m.raw === ing.raw);
         return `<div class="ingredient-line">
-          <span>${ing.raw}</span>
+          <span>${escapeHtml(ing.raw)}</span>
           <span class="${isMissing ? "missing" : "have"}">${isMissing ? "ยังไม่มี" : "มีแล้ว ✓"}</span>
         </div>`;
       })
       .join("");
 
     const stepsHtml = menu.steps
-      .map((s) => `<li>${s.replace(/^\d+\.\s*/, "")}</li>`)
+      .map((s) => `<li>${escapeHtml(s.replace(/^\d+\.\s*/, ""))}</li>`)
       .join("");
 
     const defaultImg = "https://placehold.co/400x300?text=No+Image";
@@ -472,13 +525,13 @@ const MenuDrawer = (() => {
 
     drawerBodyEl.innerHTML = `
       <div class="drawer-hero" style="width: 100%; margin-bottom: 24px; border-radius: 8px; overflow: hidden; background: #F7F7F8;">
-        <img src="${imgUrl}" alt="${menu.name}" onerror="this.src='${defaultImg}'" style="width: 100%; height: 260px; object-fit: cover; display: block;" />
+        <img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(menu.name)}" onerror="this.src='${defaultImg}'" style="width: 100%; height: 260px; object-fit: cover; display: block;" />
       </div>
       <div class="row-wrap" style="margin-bottom:18px">
         <span class="tag ${pct === 100 ? "tag-ready" : "tag-missing"}">${pct === 100 ? "ทำได้ทันที" : `ขาด ${totalCount - matchedCount} อย่าง`}</span>
         <span class="tag">ตรงกับวัตถุดิบที่มี ${pct}%</span>
       </div>
-      <h4>ค่าโภชนาการต่อจาน</h4>
+      <h4>ค่าโซเดียมและน้ำตาลต่อจาน</h4>
       <div class="row-wrap" style="margin-bottom:6px">${nutritionTagsHtml(menu)}</div>
       <p class="muted" style="font-size:12px;margin:0 0 18px">เป็นค่าโดยประมาณ ใช้ประกอบการเลือกเมนูเท่านั้น ไม่ใช่คำแนะนำทางการแพทย์</p>
       <h4>ส่วนผสม (${totalCount} รายการ)</h4>

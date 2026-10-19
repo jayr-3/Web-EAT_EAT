@@ -25,7 +25,7 @@
     ? conditions
         .map((id) => {
           const a = allergens.find((x) => x.id === id);
-          return a ? `<span class="tag tag-fave">${a.icon} ${a.label}</span>` : "";
+          return a ? `<span class="tag tag-fave">${escapeHtml(a.icon)} ${escapeHtml(a.label)}</span>` : "";
         })
         .join("")
     : `<span class="tag">ยังไม่ได้ระบุอาการแพ้</span>`;

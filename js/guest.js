@@ -34,17 +34,14 @@
       </div>`;
   }
 
-  function renderResults({ results, excludedCount }, availableCount) {
+  function renderResults({ results, excluded = [] }, availableCount) {
     if (results.length === 0) {
-      summaryEl.textContent = "";
+      summaryEl.innerHTML = excluded.length ? resultSummaryHtml(0, excluded) : "";
       renderEmpty("ไม่พบเมนูที่ปลอดภัยตามเงื่อนไขที่เลือก ลองปรับอาการแพ้หรือวัตถุดิบดูใหม่", "🚫");
       return;
     }
 
-    summaryEl.textContent =
-      excludedCount > 0
-        ? `พบ ${results.length} เมนูที่ปลอดภัยสำหรับคุณ (คัดออกไปแล้ว ${excludedCount} เมนูเพราะมีสารก่อภูมิแพ้) · เรียงตามคะแนนความนิยม`
-        : `พบ ${results.length} เมนูที่ตรงกับวัตถุดิบของคุณ · เรียงตามคะแนนความนิยม`;
+    summaryEl.innerHTML = resultSummaryHtml(results.length, excluded);
 
     listEl.innerHTML = "";
     const defaultImage = "https://placehold.co/150x150?text=No+Image";
@@ -59,10 +56,10 @@
       row.style.alignItems = "center";
       
       row.innerHTML = `
-        <img src="${imageUrl}" alt="${match.menu.name}" onerror="this.src='${defaultImage}'" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;" />
+        <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(match.menu.name)}" onerror="this.src='${defaultImage}'" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;" />
         <div class="match-ring" style="--pct:${match.pct}" data-pct="${match.pct}"></div>
         <div>
-          <div class="result-title">${match.menu.name}</div>
+          <div class="result-title">${escapeHtml(match.menu.name)}</div>
           <div class="result-tags">
             ${match.ready ? '<span class="tag tag-ready">ทำได้ทันที</span>' : `<span class="tag tag-missing">ขาด ${match.totalCount - match.matchedCount} อย่าง</span>`}
             ${match.ratingCount > 0 ? `<span class="tag">★ ${match.avgRating.toFixed(1)} (${match.ratingCount})</span>` : ""}
@@ -80,12 +77,12 @@
   function runRecommendation() {
     const available = ingredientPicker.getSelected();
     const allergenIds = conditionPicker.getSelected();
-    const { results, excludedCount } = RecommendEngine.recommend(DataStore.getMenus(), {
+    const { results, excluded } = RecommendEngine.recommend(DataStore.getMenus(), {
       availableIngredients: available,
       allergenIds,
       medicalConditions: DataStore.getMedicalConditions(),
     });
-    renderResults({ results, excludedCount }, available.length);
+    renderResults({ results, excluded }, available.length);
   }
 
   document.getElementById("btn-recommend").addEventListener("click", runRecommendation);

@@ -112,26 +112,40 @@ const RecommendEngine = (() => {
     const selectedAllergenIds = selectedIds.filter((id) => !medicalById.has(id));
 
     const safe = [];
-    const unsafe = [];
+    const unsafe = []; // [{ menu, reasons }]
     menus.forEach((menu) => {
-      if (isMenuSafe(menu, selectedAllergenIds, selectedMedicalIds, medicalById)) safe.push(menu);
-      else unsafe.push(menu);
+      const reasons = getExclusionReasons(menu, selectedAllergenIds, selectedMedicalIds, medicalById);
+      if (reasons.length === 0) safe.push(menu);
+      else unsafe.push({ menu, reasons });
     });
     return { safe, unsafe };
   }
 
-  function isMenuSafe(menu, selectedAllergenIds, selectedMedicalIds, medicalById) {
+  /**
+   * คืนเหตุผลที่เมนูนี้ถูกตัดออก (ว่าง = ปลอดภัย)
+   *  - { type: "allergy", id }                                  → มีวัตถุดิบตรงกับอาการแพ้ id นี้
+   *  - { type: "medical", condId, nutrient, value, limit }       → โซเดียม/น้ำตาลเกินเกณฑ์ของโรคนั้น
+   */
+  function getExclusionReasons(menu, selectedAllergenIds, selectedMedicalIds, medicalById) {
+    const reasons = [];
+
     // 1a) อาการแพ้อาหาร — ตัดทันทีถ้ามีวัตถุดิบตรงคำสำคัญ
-    if (menu.allergenTags.some((tag) => selectedAllergenIds.includes(tag))) return false;
+    menu.allergenTags.forEach((tag) => {
+      if (selectedAllergenIds.includes(tag)) reasons.push({ type: "allergy", id: tag });
+    });
 
     // 1b) โรคที่จำกัดปริมาณ — ตัดเฉพาะเมนูที่ "เกิน" เกณฑ์ของโรคที่เลือกไว้
     for (const condId of selectedMedicalIds) {
       const cond = medicalById.get(condId);
       if (!cond) continue;
-      if (cond.maxSodiumMg != null && menu.sodiumMg != null && menu.sodiumMg > cond.maxSodiumMg) return false;
-      if (cond.maxSugarG != null && menu.sugarG != null && menu.sugarG > cond.maxSugarG) return false;
+      if (cond.maxSodiumMg != null && menu.sodiumMg != null && menu.sodiumMg > cond.maxSodiumMg) {
+        reasons.push({ type: "medical", condId, nutrient: "sodium", value: menu.sodiumMg, limit: cond.maxSodiumMg });
+      }
+      if (cond.maxSugarG != null && menu.sugarG != null && menu.sugarG > cond.maxSugarG) {
+        reasons.push({ type: "medical", condId, nutrient: "sugar", value: menu.sugarG, limit: cond.maxSugarG });
+      }
     }
-    return true;
+    return reasons;
   }
 
   /**
@@ -172,11 +186,15 @@ const RecommendEngine = (() => {
     const ranked = rankByPopularity(matched);
     const results = withFavoriteFlag(ranked, favoriteMenuIds);
 
-    // จำนวนเมนู "ที่จะแสดงให้ผู้ใช้ถ้าไม่มีการกรองความปลอดภัย" แต่ถูกคัดออก
-    // (นับเฉพาะเมนูที่ตรงกับวัตถุดิบที่ผู้ใช้มี เพื่อไม่ให้ตัวเลขสับสน)
-    const excludedCount = unsafe.length > 0 ? matchByIngredients(unsafe, availableIngredients).length : 0;
+    // เมนูที่ถูกคัดออกเพราะไม่ปลอดภัย พร้อมเหตุผล (นับเฉพาะเมนูที่ตรงกับวัตถุดิบ
+    // ที่ผู้ใช้มี เพื่อไม่ให้ตัวเลขสับสน)
+    const reasonsByMenuId = new Map(unsafe.map((u) => [u.menu.id, u.reasons]));
+    const excluded = matchByIngredients(
+      unsafe.map((u) => u.menu),
+      availableIngredients
+    ).map((m) => ({ menu: m.menu, reasons: reasonsByMenuId.get(m.menu.id) }));
 
-    return { results, excludedCount };
+    return { results, excludedCount: excluded.length, excluded };
   }
 
   return { ingredientMatches, matchByIngredients, filterByHealthConditions, rankByPopularity, recommend };
