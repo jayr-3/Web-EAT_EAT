@@ -359,6 +359,24 @@ const DB = (() => {
       if (error) throw error;
     },
 
+    // โรคประจำตัว (ตาราง medical_conditions) — เกณฑ์โซเดียม/น้ำตาลต่อมื้อ
+    async listMedicalConditions() {
+      ensureSupabase();
+      const { data, error } = await supa.from("medical_conditions").select("*").order("sort_order");
+      if (error) throw error;
+      return data;
+    },
+    async saveMedicalCondition(condition) {
+      ensureSupabase();
+      const { error } = await supa.from("medical_conditions").upsert(condition);
+      if (error) throw error;
+    },
+    async deleteMedicalCondition(id) {
+      ensureSupabase();
+      const { error } = await supa.from("medical_conditions").delete().eq("id", id);
+      if (error) throw error;
+    },
+
     // ผู้ใช้งาน / สิทธิ์
     async listUsers() {
       ensureSupabase();
