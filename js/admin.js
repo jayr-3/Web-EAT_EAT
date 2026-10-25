@@ -1,7 +1,7 @@
 /**
  * admin.js — ตรรกะหน้า admin.html
  * เข้าถึงได้เฉพาะบัญชีที่ profiles.role = 'admin' (ตรวจโดย requireAdmin())
- * จัดการข้อมูลกลาง 3 ตาราง (menus, ingredients, allergens) และสิทธิ์ผู้ใช้ (profiles.role)
+ * จัดการข้อมูลกลาง 4 ตาราง (menus, ingredients, allergens, medical_conditions) และสิทธิ์ผู้ใช้ (profiles.role)
  */
 (async function () {
   const auth = await requireAdmin();
@@ -450,6 +450,132 @@
   });
 
   // =========================================================
+  // โรคประจำตัว (medical_conditions) — เกณฑ์โซเดียม/น้ำตาลต่อมื้อ
+  // =========================================================
+  const conditionListEl = document.getElementById("condition-list");
+  const conditionForm = document.getElementById("condition-form");
+  const conditionFormError = document.getElementById("condition-form-error");
+  const conditionFormTitle = document.getElementById("condition-form-title");
+  const conditionFormCancel = document.getElementById("condition-form-cancel");
+  const conditionIdInput = document.getElementById("condition-id");
+  let conditionsList = [];
+
+  const numOrNull = (v) => (String(v).trim() === "" ? null : Number(v));
+
+  function resetConditionForm() {
+    conditionForm.reset();
+    document.getElementById("condition-order").value = 0;
+    conditionIdInput.disabled = false;
+    conditionFormTitle.textContent = "เพิ่มโรคประจำตัวใหม่";
+    conditionFormCancel.classList.add("hidden");
+    conditionFormError.classList.remove("is-visible");
+  }
+
+  function editCondition(c) {
+    conditionIdInput.value = c.id;
+    conditionIdInput.disabled = true;
+    document.getElementById("condition-label").value = c.label;
+    document.getElementById("condition-icon").value = c.icon;
+    document.getElementById("condition-sodium").value = c.max_sodium_mg ?? "";
+    document.getElementById("condition-sugar").value = c.max_sugar_g ?? "";
+    document.getElementById("condition-daily-sodium").value = c.daily_sodium_mg ?? "";
+    document.getElementById("condition-order").value = c.sort_order ?? 0;
+    conditionFormTitle.textContent = `แก้ไข: ${c.label}`;
+    conditionFormCancel.classList.remove("hidden");
+    conditionForm.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function renderConditions() {
+    if (conditionsList.length === 0) {
+      conditionListEl.innerHTML = `<div class="empty-state"><div class="glyph">🩺</div><p class="mb-0">ยังไม่มีโรคประจำตัว</p></div>`;
+      return;
+    }
+    conditionListEl.innerHTML = conditionsList
+      .map((c) => {
+        const limits = [
+          c.max_sodium_mg != null ? `โซเดียม ≤ ${c.max_sodium_mg} มก./มื้อ` : null,
+          c.max_sugar_g != null ? `น้ำตาล ≤ ${c.max_sugar_g} ก./มื้อ` : null,
+          c.daily_sodium_mg != null ? `(โซเดียมต่อวัน ${c.daily_sodium_mg} มก.)` : null,
+        ].filter(Boolean);
+        return `
+        <div class="admin-row" data-id="${escapeHtml(c.id)}">
+          <div class="info">
+            <div class="title">${escapeHtml(c.icon)} ${escapeHtml(c.label)} <span class="meta">(${escapeHtml(c.id)})</span></div>
+            <div class="meta">${limits.length ? escapeHtml(limits.join(" · ")) : "ไม่จำกัดโซเดียมและน้ำตาล"}</div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-outline btn-sm" data-action="edit">แก้ไข</button>
+            <button class="btn btn-danger-outline btn-sm" data-action="delete">ลบ</button>
+          </div>
+        </div>`;
+      })
+      .join("");
+    conditionListEl.querySelectorAll(".admin-row").forEach((row) => {
+      const c = conditionsList.find((x) => x.id === row.dataset.id);
+      row.querySelector('[data-action="edit"]').addEventListener("click", () => editCondition(c));
+      row.querySelector('[data-action="delete"]').addEventListener("click", () => deleteCondition(c));
+    });
+  }
+
+  async function loadConditions() {
+    conditionsList = await DB.admin.listMedicalConditions();
+    renderConditions();
+  }
+
+  async function deleteCondition(c) {
+    if (
+      !confirm(
+        `ลบโรคประจำตัว "${c.label}" ใช่หรือไม่?\n\nผู้ใช้ที่เลือกโรคนี้ไว้ในโปรไฟล์จะไม่ถูกกรองด้วยโรคนี้อีก`
+      )
+    )
+      return;
+    try {
+      await DB.admin.deleteMedicalCondition(c.id);
+      Toast.show("ลบแล้ว", "success");
+      if (conditionIdInput.disabled && conditionIdInput.value === c.id) resetConditionForm();
+      await loadConditions();
+    } catch (err) {
+      Toast.show(err.message || "ลบไม่สำเร็จ", "danger");
+    }
+  }
+
+  conditionFormCancel.addEventListener("click", resetConditionForm);
+
+  conditionForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    conditionFormError.classList.remove("is-visible");
+    const isEditing = conditionIdInput.disabled;
+    const id = conditionIdInput.value.trim();
+    if (!isEditing && conditionsList.some((x) => x.id === id)) {
+      conditionFormError.textContent = "รหัสนี้มีอยู่แล้ว";
+      conditionFormError.classList.add("is-visible");
+      return;
+    }
+    const condition = {
+      id,
+      label: document.getElementById("condition-label").value.trim(),
+      icon: document.getElementById("condition-icon").value.trim(),
+      max_sodium_mg: numOrNull(document.getElementById("condition-sodium").value),
+      max_sugar_g: numOrNull(document.getElementById("condition-sugar").value),
+      daily_sodium_mg: numOrNull(document.getElementById("condition-daily-sodium").value),
+      sort_order: Number(document.getElementById("condition-order").value) || 0,
+    };
+    const submitBtn = conditionForm.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    try {
+      await DB.admin.saveMedicalCondition(condition);
+      Toast.show("บันทึกแล้ว", "success");
+      resetConditionForm();
+      await loadConditions();
+    } catch (err) {
+      conditionFormError.textContent = err.message || "บันทึกไม่สำเร็จ";
+      conditionFormError.classList.add("is-visible");
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  // =========================================================
   // ผู้ใช้งาน / สิทธิ์
   // =========================================================
   const userListEl = document.getElementById("user-list");
@@ -546,8 +672,9 @@
     userDrawerBody.innerHTML = `<p class="mb-0">กำลังโหลดข้อมูล...</p>`;
     userDrawerOverlay.classList.add("is-open");
     try {
-      const { profile: p, favorites } = await DB.getUserDetail(u.id);
-      const allergens = DataStore.getAllergens();
+      const { profile: p, favorites } = await DB.admin.getUserDetail(u.id);
+      // health_conditions เก็บทั้งรหัสอาการแพ้ (allergens) และโรคประจำตัว (medical_conditions)
+      const allergens = [...DataStore.getAllergens(), ...DataStore.getMedicalConditions()];
       const conditionLabels = (p.health_conditions || [])
         .map((id) => {
           const a = allergens.find((x) => x.id === id);
@@ -601,7 +728,7 @@
 
   // ---------- โหลดข้อมูลทั้งหมดตอนเปิดหน้า ----------
   try {
-    await Promise.all([loadMenus(), loadIngredients(), loadAllergens(), loadUsers()]);
+    await Promise.all([loadMenus(), loadIngredients(), loadAllergens(), loadConditions(), loadUsers()]);
   } catch (err) {
     Toast.show(err.message || "โหลดข้อมูลไม่สำเร็จ", "danger", 6000);
   }
