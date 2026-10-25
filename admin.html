@@ -41,6 +41,7 @@
         <button class="tab-btn is-active" data-tab="menus">เมนูอาหาร</button>
         <button class="tab-btn" data-tab="ingredients">วัตถุดิบ</button>
         <button class="tab-btn" data-tab="allergens">อาการแพ้</button>
+        <button class="tab-btn" data-tab="conditions">โรคประจำตัว</button>
         <button class="tab-btn" data-tab="users">ผู้ใช้งาน</button>
       </div>
 
@@ -174,6 +175,59 @@
           </div>
           <div class="col-main">
             <div id="allergen-list" class="admin-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== TAB: โรคประจำตัว ===== -->
+      <section class="tab-panel" data-tab-panel="conditions">
+        <div class="grid-2col">
+          <div class="col-side panel">
+            <h3 id="condition-form-title">เพิ่มโรคประจำตัวใหม่</h3>
+            <div id="condition-form-error" class="form-error"></div>
+            <form id="condition-form">
+              <div class="field">
+                <label for="condition-id">รหัส (ภาษาอังกฤษ ไม่ซ้ำ)</label>
+                <input type="text" id="condition-id" class="input" required pattern="[a-z0-9_\-]+" placeholder="เช่น diabetes" />
+                <small>ใช้อ้างอิงในระบบและโปรไฟล์ผู้ใช้ แก้ไขไม่ได้หลังสร้างแล้ว</small>
+              </div>
+              <div class="field-row two">
+                <div class="field">
+                  <label for="condition-label">ป้ายข้อความ</label>
+                  <input type="text" id="condition-label" class="input" required placeholder="เช่น โรคเบาหวาน" />
+                </div>
+                <div class="field">
+                  <label for="condition-icon">ไอคอน (อิโมจิ)</label>
+                  <input type="text" id="condition-icon" class="input" required placeholder="🩸" />
+                </div>
+              </div>
+              <div class="field-row two">
+                <div class="field">
+                  <label for="condition-sodium">โซเดียมสูงสุดต่อมื้อ (มก.)</label>
+                  <input type="number" id="condition-sodium" class="input" min="0" placeholder="เว้นว่าง = ไม่จำกัด" />
+                </div>
+                <div class="field">
+                  <label for="condition-sugar">น้ำตาลสูงสุดต่อมื้อ (ก.)</label>
+                  <input type="number" id="condition-sugar" class="input" min="0" placeholder="เว้นว่าง = ไม่จำกัด" />
+                </div>
+              </div>
+              <div class="field">
+                <label for="condition-daily-sodium">โซเดียมสูงสุดต่อวัน (มก.) — ใช้แสดงที่มาของเกณฑ์</label>
+                <input type="number" id="condition-daily-sodium" class="input" min="0" placeholder="เว้นว่างได้" />
+                <small>เกณฑ์ต่อมื้อ = เกณฑ์ต่อวัน ÷ 3 (ค่าเบื้องต้น ให้ผู้เชี่ยวชาญตรวจก่อนใช้จริง)</small>
+              </div>
+              <div class="field">
+                <label for="condition-order">ลำดับการแสดงผล</label>
+                <input type="number" id="condition-order" class="input" value="0" />
+              </div>
+              <div class="row-wrap">
+                <button type="submit" class="btn btn-primary">บันทึก</button>
+                <button type="button" id="condition-form-cancel" class="btn btn-ghost hidden">ยกเลิกแก้ไข</button>
+              </div>
+            </form>
+          </div>
+          <div class="col-main">
+            <div id="condition-list" class="admin-list"></div>
           </div>
         </div>
       </section>
